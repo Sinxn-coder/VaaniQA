@@ -52,27 +52,33 @@ export async function evaluateConversation(input: unknown, provider: EvaluationP
   const parsedInput = evaluationInputSchema.safeParse(input)
   if (!parsedInput.success) throw new InputValidationError('Invalid evaluation input')
 
-  let rawResult: unknown
-  try {
-    rawResult = await provider(parsedInput.data)
-  } catch (error) {
-    if (error instanceof InvalidModelOutputError || error instanceof ProviderRateLimitError || error instanceof ProviderError || error instanceof ProviderConfigurationError) throw error
-    throw new ProviderError('Evaluation provider failed')
-  }
+  let lastInvalidOutput: InvalidModelOutputError | undefined
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    lastInvalidOutput = undefined
+    let rawResult: unknown
+    try {
+      rawResult = await provider(parsedInput.data)
+    } catch (error) {
+      if (error instanceof InvalidModelOutputError) { lastInvalidOutput = error; continue }
+      if (error instanceof ProviderRateLimitError || error instanceof ProviderError || error instanceof ProviderConfigurationError) throw error
+      throw new ProviderError('Evaluation provider failed')
+    }
 
-  const result = modelEvaluationSchema.safeParse(rawResult)
-  if (!result.success) throw new InvalidModelOutputError('Provider returned invalid evaluation data')
-  const evaluation = result.data
-  const evidenceItems = [evaluation.languageNaturalness.evidence, evaluation.contextualAppropriateness.evidence]
-  if (evidenceItems.some(evidence => !evidence.trim() || !parsedInput.data.conversation.includes(evidence))) throw new InvalidModelOutputError('Provider evidence must quote text present in the supplied conversation')
-  if (parsedInput.data.language === 'Malayalam' && /[\u0d00-\u0d7f][A-Za-z]|[A-Za-z][\u0d00-\u0d7f]|\uFFFD|\u00e0\u00b4|\u00e0\u00b5/u.test(evaluation.suggestedAlternative.wording)) throw new InvalidModelOutputError('Suggested Malayalam contains malformed mixed-script or corrupted text')
-  const alternativeText = `${evaluation.suggestedAlternative.wording}\n${evaluation.suggestedAlternative.rationale}`
-  const unsupportedClaims = /\b(?:(?:validated|reviewed|approved|verified) by (?:a )?(?:native speakers?|native reviewers?)|native (?:speakers?|reviewers?) (?:have |has )?(?:validated|reviewed|approved|verified)|native[- ]speaker[- ](?:validated|reviewed|approved|verified)|native(?:[- ]speaker)?[- ](?:validated|reviewed|approved|verified)|human[- ]validated|clinic(?:ally)?[- ]approved)\b/ig
-  for (const match of alternativeText.matchAll(unsupportedClaims)) {
-    const preceding = alternativeText.slice(Math.max(0, (match.index ?? 0) - 28), match.index)
-    if (!/\b(?:not|never|no|without|unvalidated)\s+(?:yet\s+)?$/i.test(preceding)) throw new InvalidModelOutputError('Suggested wording cannot claim native-speaker or clinic validation')
+    const result = modelEvaluationSchema.safeParse(rawResult)
+    if (!result.success) { lastInvalidOutput = new InvalidModelOutputError('Provider returned invalid evaluation data'); continue }
+    const evaluation = result.data
+    const evidenceItems = [evaluation.languageNaturalness.evidence, evaluation.contextualAppropriateness.evidence]
+    if (evidenceItems.some(evidence => !evidence.trim() || !parsedInput.data.conversation.includes(evidence))) { lastInvalidOutput = new InvalidModelOutputError('Provider evidence must quote text present in the supplied conversation'); continue }
+    if (parsedInput.data.language === 'Malayalam' && /[\u0d00-\u0d7f][A-Za-z]|[A-Za-z][\u0d00-\u0d7f]|\uFFFD|\u00e0\u00b4|\u00e0\u00b5/u.test(evaluation.suggestedAlternative.wording)) { lastInvalidOutput = new InvalidModelOutputError('Suggested Malayalam contains malformed mixed-script or corrupted text'); continue }
+    const alternativeText = `${evaluation.suggestedAlternative.wording}\n${evaluation.suggestedAlternative.rationale}`
+    const unsupportedClaims = /\b(?:(?:validated|reviewed|approved|verified) by (?:a )?(?:native speakers?|native reviewers?)|native (?:speakers?|reviewers?) (?:have |has )?(?:validated|reviewed|approved|verified)|native[- ]speaker[- ](?:validated|reviewed|approved|verified)|native(?:[- ]speaker)?[- ](?:validated|reviewed|approved|verified)|human[- ]validated|clinic(?:ally)?[- ]approved)\b/ig
+    for (const match of alternativeText.matchAll(unsupportedClaims)) {
+      const preceding = alternativeText.slice(Math.max(0, (match.index ?? 0) - 28), match.index)
+      if (!/\b(?:not|never|no|without|unvalidated)\s+(?:yet\s+)?$/i.test(preceding)) { lastInvalidOutput = new InvalidModelOutputError('Suggested wording cannot claim native-speaker or clinic validation'); break }
+    }
+    if (!lastInvalidOutput) return evaluation
   }
-  return evaluation
+  throw lastInvalidOutput ?? new InvalidModelOutputError('Provider returned invalid evaluation data')
 }
 
 const outputJsonSchema = {

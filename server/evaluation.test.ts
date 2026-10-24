@@ -131,6 +131,16 @@ test('evaluation rejects missing or unsupported transcript evidence', async () =
   })), InvalidModelOutputError)
 })
 
+test('evaluation retries one transient invalid provider result', async () => {
+  let attempts = 0
+  const evaluated = await evaluateConversation(validInput, async () => {
+    attempts += 1
+    return attempts === 1 ? { malformed: true } : validResult
+  })
+  assert.equal(attempts, 2)
+  assert.deepEqual(evaluated, validResult)
+})
+
 test('evaluation keeps the source separate and adds a turn reference for exact evidence', async () => {
   const conversation = ' \nCaller: Hello, can you help?\nAgent: Yes, I can help. \t'
   const input = { ...validInput, conversation }
