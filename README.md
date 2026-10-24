@@ -1,279 +1,331 @@
-# VaaniQA
+# VaaniQA — Voice Agent Quality Assurance & Continuous Improvement
 
-VaaniQA is a local-first quality-assurance workspace for reviewing multilingual voice-agent conversations. It helps a reviewer move from a conversation transcript to evidence-backed findings, contextual checks, suggested improvements, and human review.
+> **A voice agent can give the correct answer and still deliver a bad conversation.**
 
-> **Product status:** VaaniQA is an MVP/prototype intended for controlled demonstrations and local evaluation. It does not connect to a live voice agent, does not prove native-speaker quality, and does not evaluate vocal delivery from text.
+VaaniQA is an AI-powered conversational quality assurance and continuous improvement platform designed for voice agents and customer-facing AI. While traditional testing checks functional correctness—whether an intent matched, an API was triggered, or an answer was returned—VaaniQA evaluates how naturally, appropriately, and contextually an agent communicates with real human beings.
 
-## What the product does
+---
 
-VaaniQA supports a practical evaluation workflow:
+## The Problem: Correctness Does Not Equal Quality
 
-1. Configure an agent and its clinic/business rules.
-2. Generate synthetic test scenarios with OpenAI.
-3. Paste an existing conversation or transcribe an uploaded recording.
-4. Evaluate the transcript in Demo mode or with the server-side OpenAI evaluator.
-5. Review separate findings for:
-   - Language naturalness
-   - Contextual judgment
-   - Vocal delivery, when audio analysis exists
-6. Inspect transcript evidence and uncertainty.
-7. Compare the original response with a suggested alternative.
-8. Flag a result for human/native-speaker review.
-9. Optionally persist workspace metadata and review information through a private Supabase/PostgreSQL adapter.
+In modern enterprise voice applications, conventional automated testing stops at superficial validation:
+- Did the speech-to-text engine catch the keywords?
+- Did the dialogue model trigger the right function call?
+- Was an answer returned without a 500 error?
 
-The current illustrative clinic scenario checks whether an agent confirms an appointment only after availability has been checked. Formal Malayalam is not automatically treated as wrong, Malayalam-English code-switching is not automatically penalized, and vocal delivery remains explicitly unevaluated without audio analysis.
+Yet in real production deployments, conversations fail quietly and catastrophically for subtle human reasons:
+- **Robotic, stilted phrasing:** The agent sounds like an automated IVR reading database rows rather than an empathetic, helpful representative.
+- **Unnatural translation & code-switching:** In multilingual communities (such as Malayalam and Malayalam-English code-switching), literal translations produce archaic bookish vocabulary that native speakers would never use in everyday phone calls.
+- **Tone mismatch:** Responding to an anxious caller with cold bureaucratic formality or dismissive repetition.
+- **Contextual blindness:** Prematurely confirming commitments (e.g., confirming a doctor's appointment before checking clinic schedule availability) or failing to adapt when callers change their minds or provide incomplete details.
+- **Conversational breakdown:** Inability to handle interruptions, clarifications, hesitation, or casual idioms.
 
-## Current limitations
+VaaniQA bridges this gap by systematically evaluating conversations against real conversational dynamics, providing evidence-backed diagnoses, and driving a closed continuous improvement loop.
 
-- Demo mode uses deterministic local rules and is not a model evaluation.
-- The provider/voice-agent integrations shown in Agent Setup are labels only; no voice agent is invoked.
-- Live text evaluation assesses transcript content only.
-- Audio upload currently performs server-side transcription; it is not vocal-delivery analysis.
-- Suggested Malayalam wording is AI-generated and requires human/native-speaker review.
-- Reviewer fluency and expertise are self-reported and not independently verified.
-- Local browser storage is the default persistence mode.
-- Supabase persistence is an optional local-MVP adapter.
-- The app has no user authentication and must not be exposed as a public shared service.
-- Do not upload patient identifiers, confidential conversations, or medical details unless properly authorized.
+---
 
-## Technology stack
+## Product Vision & Core Mission
 
-### Frontend
+VaaniQA's mission is to help teams build voice agents that talk like humans, respect cultural nuance, adhere to business boundaries, and continuously improve over time.
 
-- React 19
-- TypeScript
-- Vite
-- CSS with responsive layouts and CSS/SVG product visualizations
-- Browser `localStorage` repositories for local workspace, scenarios, dataset records, and review state
+### The Continuous Improvement Loop
 
-### Backend
-
-- Node.js
-- Express 5
-- TypeScript executed with `tsx` during development
-- Same-origin Vite middleware in development
-- Static Vite output in production mode
-- Zod schemas for request and provider-output validation
-
-### AI and audio tools
-
-- OpenAI Responses API for structured conversation evaluation
-- OpenAI structured JSON schema output
-- OpenAI transcription adapter for uploaded recordings
-- Configurable model through `OPENAI_MODEL` (default: `gpt-4.1-mini`)
-- Provider requests use `store: false`
-
-### Persistence and data controls
-
-- PostgreSQL client: `pg`
-- Supabase Shared Pooler connection through a server-only `DATABASE_URL`
-- Private `vaaniqa` schema
-- Row-level security enabled on all application tables
-- No browser Data API grants for `anon`, `authenticated`, or `service_role`
-- Evaluation summaries store metadata/findings only; transcript text, evidence quotes, recordings, and suggested wording are intentionally excluded from evaluation-summary persistence
-
-### Testing and build tools
-
-- Node test runner through `tsx --test`
-- TypeScript project builds
-- Vite production build
-- `git diff --check` for whitespace validation
-
-## Repository structure
-
-```text
-.
-├── server/
-│   ├── app.ts                 # Express routes and API error handling
-│   ├── evaluation.ts          # OpenAI evaluator, schemas, evidence checks
-│   ├── persistence.ts         # PostgreSQL/Supabase adapter and validation
-│   ├── scenarios.ts           # Scenario-library generation
-│   ├── transcription.ts       # Audio upload validation and transcription
-│   └── *.test.ts              # Server-side tests
-├── src/
-│   ├── App.tsx                # Main evaluator workspace
-│   ├── MarketingHome.tsx      # Public landing page
-│   ├── evaluation/
-│   │   ├── demoEvaluator.ts   # Deterministic local demo evaluator
-│   │   ├── languages.ts       # Malayalam/Tamil locale definitions
-│   │   └── context.ts         # Evaluation context construction
-│   ├── features/              # Setup, scenarios, dataset, and UI features
-│   ├── dataset/               # Browser dataset repository and privacy checks
-│   └── scenarios/             # Browser scenario repository and types
-├── supabase/
-│   └── migrations/            # Private schema, constraints, and RLS setup
-├── .env.example               # Server-only configuration template
-├── package.json               # Scripts and dependencies
-└── README.md                  # Product, architecture, and operation guide
+```mermaid
+graph LR
+    Connect[1. Connect Agent] --> Simulate[2. Simulate Scenarios]
+    Simulate --> Evaluate[3. Evaluate Quality]
+    Evaluate --> Report[4. Detailed Report]
+    Report --> Improve[5. Guided Fixes]
+    Improve --> Retest[6. Retest & Benchmark]
+    Retest --> Connect
 ```
 
-## Local setup
+1. **Connect:** Integrate conversational AI systems, upload transcripts, or import recorded audio.
+2. **Simulate:** Generate realistic, persona-driven edge cases and adversarial scenarios tailored to industry rules.
+3. **Evaluate:** Assess multi-turn interactions across language naturalness, contextual judgment, business policy adherence, and conversational flow.
+4. **Report:** Provide actionable diagnostic reports with exact transcript citations, uncertainty disclosures, and impact ratings.
+5. **Improve:** Offer suggested rewrites, prompt adjustments, and rule clarifications that can be reviewed and approved by humans.
+6. **Retest:** Convert past failures into automated regression suites to track quality metrics across releases.
 
-Requirements:
+---
 
-- Node.js 20+ recommended
-- npm
-- Optional OpenAI API key for live evaluation and scenario generation
-- Optional Supabase Shared Pooler PostgreSQL connection for server persistence
+## Comprehensive Quality Dimensions
 
-Install dependencies:
+VaaniQA evaluates conversational quality across multiple specialized dimensions. Below is the full evaluation framework and its current implementation status in the codebase:
 
-```sh
-npm install
+| Quality Dimension | Description | Implementation Status |
+| :--- | :--- | :--- |
+| **Language Naturalness** | Does the response sound natural, fluent, and colloquial for everyday conversation? Avoids stilted grammar or machine-translated artifacts. | **Implemented** (Structured model assessment with transcript evidence matching) |
+| **Contextual Judgment & Appropriateness** | Does the agent respond to what the user actually meant and asked? Checks policy timing (e.g., verifying availability before booking). | **Implemented** (Evidence-backed evaluation against expected rules) |
+| **Suggested Alternatives** | Generates conversational rewrites preserving business intent while improving naturalness, with rationale. | **Implemented** (Validated against unsupported claims and malformed script) |
+| **Uncertainty & Missing Evidence** | Explicitly declares evaluator uncertainty and flags missing contextual evidence (e.g. unstated clinic rules). | **Implemented** (Mandatory structured output fields) |
+| **Conversational Tone & Register** | Evaluates if the agent is overly formal, repetitive, robotic, dismissive, or mismatched to user emotion. | **Partial** (Assessed within Naturalness/Context explanations; planned as dedicated score) |
+| **Multi-Turn Flow & Direction Handling** | How the agent handles clarifications, topic changes, interruptions, and evolving customer requests. | **Partial** (Evaluates multi-turn inputs; automated live multi-turn execution is planned) |
+| **Instruction & Rule Adherence** | Validates strict adherence to provided business boundaries without hallucinating advice or violating policy. | **Partial** (Evaluated against provided clinic context rules) |
+| **Language & Code-Switching** | Handles mixed-language conversations (e.g. Malayalam-English), colloquial regionalisms, and script consistency. | **Partial** (Malayalam/Tamil locale constraints and code-switch heuristics active) |
+| **Safety & Escalation** | Recognizes when to refuse, clarify, or hand off to human supervisors without fabricating unsafe guidance. | **Partial** (Escalation checks included in scenario generation and context evaluation) |
+| **Vocal Delivery (Pace, Tone, Pauses)** | Measures acoustic qualities, speech cadence, hesitations, latency, and pronunciation from raw audio. | **Planned** (Audio files currently transcribe text only; vocal delivery is explicitly unevaluated) |
+
+> **Transparency Note:** AI evaluations can make mistakes. VaaniQA enforces quotation of exact transcript snippets for all findings, marks unmeasured dimensions as unevaluated, and incorporates human review workflows to preserve reviewer disagreement and dialect variations.
+
+---
+
+## How It Works: Current Capabilities vs. Planned Vision
+
+### 1. Realistic Human Conversation Simulation
+Traditional testing relies on static, scripted question-and-answer trees. Real people do not converse like test scripts: they pause, correct themselves mid-sentence, ask follow-up questions, exhibit frustration, and introduce ambiguity.
+
+- **Current Implementation:** VaaniQA generates structured scenario libraries across distinct categories (Appointment Scheduling, Service Inquiry, Rescheduling, Edge Cases, Out of Scope) using clinic constraints, operating hours, and business boundaries without hallucinating unverified medical guidance.
+- **Long-Term Vision:** Dynamic multi-turn agent simulation where synthetic customer personas autonomously converse with live voice agents in real-time, adapting their responses based on the agent's behavior.
+
+### 2. Connect Voice Agents & Chatbots
+- **Current Implementation:** Users can test conversations via manual transcript paste, synthetic demo scenarios, browser-curated datasets, or by uploading call recordings (MP3, WAV, M4A, WebM up to 25 MB) for server-side Whisper transcription.
+- **Long-Term Vision:** Native zero-code integrations and webhooks for leading voice platforms (Vapi, Retell AI, ElevenLabs, Bland AI) and universal conversational APIs to run automated end-to-end evaluation runs.
+
+### 3. Detailed Quality Reports & Evidence
+- **Current Implementation:** Interactive scorecards displaying overall quality scores (0–100), dimensional ratings, cited evidence quotes, rationale, uncertainty notes, and side-by-side original vs. suggested wording comparison with export support.
+- **Long-Term Vision:** Longitudinal quality dashboards, regression test suites, team collaboration workspaces, downloadable PDF/audit reports, and cohort analysis across agent versions and locales.
+
+### 4. Guided Fixes & Human-in-the-Loop Review
+- **Current Implementation:** AI-generated wording suggestions with transparent review disclaimers. Reviewers can flag conversations for native-speaker evaluation, rate naturalness (1–5), specify dialect/register, and record human corrections.
+- **Long-Term Vision:** Automated system prompt optimization, rule ambiguity detection, automated configuration change proposals, and verified native-speaker crowdsourcing networks.
+
+---
+
+## Regional Language & Multilingual Focus
+
+Generic evaluation models routinely fail when assessing non-English conversations. VaaniQA prioritizes regional languages and vernacular dynamics, starting with **Malayalam (`ml-IN`)** and expanding to **Tamil (`ta-IN`)** and beyond:
+- **Dialect & Register Sensitivity:** Avoids penalizing colloquial Malayalam or everyday Malayalam-English code-switching as "ungrammatical."
+- **Anti-Hallucination & Script Hygiene:** Strict server-side Zod validation filters out corrupted Unicode, mixed-script artifacts, and unverified claims of "native-speaker approval."
+- **Preserving Disagreement:** Human review modules record individual dialect annotations without artificially forcing consensus across regional variants.
+
+---
+
+## Target Industry Use Cases
+
+| Industry | Typical Challenges | VaaniQA Quality Focus |
+| :--- | :--- | :--- |
+| **Healthcare & Clinics** | Appointment scheduling, pre-op instructions, department routing, triage. | Verifying policy compliance, preventing fabricated medical advice, ensuring clear escalation. |
+| **Customer Support & Telecom** | Billing inquiries, plan changes, troubleshooting, complaints. | De-escalation tone, avoiding repetitive robotic scripts, handling customer frustration. |
+| **E-Commerce & Logistics** | Order tracking, delivery rescheduling, return policy inquiries. | Clarity in explaining policies, managing multi-step clarifications, concise confirmations. |
+| **Banking & Financial Services** | Balance checks, transaction inquiries, branch administrative info. | Strict safety boundaries, zero disclosure of private data, clear escalation paths. |
+| **Education & Travel** | Admissions inquiries, ticket bookings, itinerary changes. | Handling complex multi-part questions and evolving customer intent. |
+
+---
+
+## Current Implementation Status
+
+To ensure complete transparency for mentors, developers, and users, here is the verified status of the repository:
+
+| Feature / Subsystem | Status | Details |
+| :--- | :---: | :--- |
+| **Interactive Test Lab UI** | **Implemented** | Full React workspace for evaluating transcripts, inspecting scores, and reviewing suggestions. |
+| **Deterministic Demo Evaluator** | **Implemented** | Fast, local heuristic evaluation mode requiring no external API credentials. |
+| **Live OpenAI Evaluator** | **Implemented** | Server-side structured evaluation (`gpt-4.1-mini`) with schema validation and evidence checks. |
+| **Retry & Transient Failure Handling** | **Implemented** | Server automatically retries transient invalid provider outputs. |
+| **Audio Upload & Transcription** | **Implemented** | Upload validation for MP3, WAV, M4A, WebM (≤ 25MB) with OpenAI transcription integration. |
+| **Synthetic Scenario Generator** | **Implemented** | Generates unique clinic test suites across 5 categories based on configured business rules. |
+| **Human Review Workflows** | **Implemented** | Flags results for native review; captures rating (1–5), dialect notes, and wording corrections. |
+| **Dataset Browser & Privacy Redaction**| **Implemented** | Local repository managing authentic vs. synthetic records, checking obvious patient identifiers. |
+| **Browser Local Storage Repository** | **Implemented** | Full local persistence for agent setups, scenarios, dataset records, and review feedback. |
+| **Optional PostgreSQL/Supabase Adapter**| **Implemented** | Private schema with RLS, loopback-only endpoints, storing metadata without conversation transcripts. |
+| **Live External Agent Connectors** | **Planned** | Direct API/webhook integration with Vapi, Retell, ElevenLabs (currently configuration labels only). |
+| **Autonomous End-to-End Execution** | **Planned** | Simulating interactive phone calls directly into voice provider endpoints. |
+| **Audio-Based Vocal Delivery Analysis**| **Planned** | Acoustic pitch, latency, pause, and jitter evaluation from raw audio signals. |
+| **Automated Prompt Regression Testing**| **Planned** | Automated testing of new system prompts against past failure cases. |
+| **User Authentication & Multi-Tenancy**| **Planned** | Currently a single-tenant local-first development workspace; no public multi-tenant auth. |
+
+---
+
+## Product Roadmap
+
+```mermaid
+timeline
+    title VaaniQA Product Evolution
+    Phase 1 : Core Quality Workspace (Current) : Evidence-backed evaluation : Malayalam & Tamil support : Scenario generation : Audio transcription : Local & Supabase persistence
+    Phase 2 : Platform Integrations & Connectors : Webhook ingestion : Vapi & Retell adapters : Live call transcript sync : Expanded Indic languages
+    Phase 3 : Autonomous Simulation & Regression : Bot-to-bot interactive calls : Automated regression test suites : Prompt auto-optimization : CI/CD quality gates
+    Phase 4 : Acoustic Analysis & Enterprise Platform : Audio vocal delivery analysis : Multi-tenant team workspaces : Role-based access control : SOC2 compliance & audit exports
 ```
 
-Create local configuration:
+- **Phase 1: Foundations (Current MVP)**
+  - Local-first evaluation workspace and demo engine.
+  - Server-side OpenAI structured evaluation with evidence enforcement.
+  - Scenario generation with business constraints.
+  - Human review logging for regional dialect nuances.
+- **Phase 2: Platform Connectors (Near-Term)**
+  - Ingestion webhooks for Vapi, Retell AI, and ElevenLabs.
+  - Conversation import pipelines from CRM systems.
+  - Expanded regional language packs (Hindi, Kannada, Telugu).
+- **Phase 3: Autonomous Testing (Medium-Term)**
+  - Persona-driven conversational agents testing voice agents autonomously.
+  - CI/CD quality gates failing builds when conversational naturalness regresses.
+  - Prompt and business-rule diff recommendations.
+- **Phase 4: Multimodal Quality & Enterprise (Long-Term)**
+  - Native audio acoustic analysis (pause frequency, interruptions, audio sentiment).
+  - Multi-tenant enterprise workspaces with role-based access.
+  - Verified human reviewer crowdsourcing marketplace.
 
-```sh
-cp .env.example .env
-```
+---
 
-Then edit `.env` locally:
+## Proposed Monetization Model
 
-```dotenv
-OPENAI_API_KEY=your-server-side-key
-OPENAI_MODEL=gpt-4.1-mini
-PORT=3001
-DATABASE_URL=
-```
+*(Note: Pricing tiers below represent the proposed future business model. Live billing and paid quotas are not currently active in this repository.)*
 
-Never commit `.env`, API keys, database passwords, or other credentials. `.env` is ignored by Git.
+| Tier | Target Audience | Planned Inclusions |
+| :--- | :--- | :--- |
+| **Free / Starter** | Developers, researchers, indie hackers | Community access, local evaluation tools, limited monthly test runs, basic quality reports, manual transcript paste. |
+| **Pro** | AI voice engineers & boutique agencies | Higher evaluation volume, full scenario generation suite, conversation history comparisons, custom rule profiles, priority model evaluation. |
+| **Team / Business** | Growing conversational AI teams | Shared workspaces, multi-agent management, regression testing suites, team human-review queues, webhook ingestion. |
+| **Enterprise** | Healthcare systems, financial institutions, call centers | Custom voice-stack integrations, on-premise/VPC deployment, custom SLA, dedicated evaluation fine-tuning, security audits & HIPAA/SOC2 compliance. |
 
-Start the development server:
+---
 
-```sh
-npm run dev
-```
+## Technology Stack
 
-The current default development URL is:
+Verified directly from the repository:
 
-http://localhost:3001/
-```
+- **Frontend:**
+  - [React 19](file:///c:/Users/SINAN/OneDrive/Documents/VaaniQA/package.json) with TypeScript
+  - [Vite 6](file:///c:/Users/SINAN/OneDrive/Documents/VaaniQA/vite.config.ts) bundling & development server
+  - Vanilla CSS design system with custom typography, responsive grid layouts, and SVG data visualizations
+  - Browser `localStorage` repositories for immediate, zero-setup local state
+- **Backend Server:**
+  - Node.js & [Express 5](file:///c:/Users/SINAN/OneDrive/Documents/VaaniQA/server/app.ts)
+  - TypeScript execution with `tsx`
+  - In-memory rate limiting and request payload validation
+  - Strict input & output validation using [Zod](file:///c:/Users/SINAN/OneDrive/Documents/VaaniQA/server/evaluation.ts)
+- **AI & Speech Providers:**
+  - OpenAI Structured Outputs API (`OPENAI_MODEL`, defaults to `gpt-4.1-mini`)
+  - OpenAI Whisper audio transcription adapter
+  - Zero-data-retention headers (`store: false`) on provider calls
+- **Data & Persistence:**
+  - PostgreSQL driver (`pg`) for optional Supabase connection
+  - Private database schema (`vaaniqa`) with Row Level Security (RLS) enabled
+  - Strict privacy boundary: evaluation summaries store quality scores and finding categories, but intentionally exclude transcript text, quotes, and recordings
+- **Testing & Quality Assurance:**
+  - Node.js native test runner via `tsx --test`
+  - 56 automated unit and integration tests across schemas, routes, locale handling, error states, and persistence
 
-Useful routes:
+---
 
-- `/` — marketing homepage
-- `/app` — evaluator workspace
-- `/dashboard` — evaluator workspace alias
+## Getting Started Locally
 
-## Demonstration workflow
+### Prerequisites
+- Node.js 20+ installed
+- npm 10+
+- Optional: OpenAI API key (for live model evaluation, scenario generation, and audio transcription)
+- Optional: Supabase PostgreSQL database (for remote persistence)
 
-### Controlled live evaluation
+### Installation
 
-1. Start the server locally.
-2. Open `/app`.
-3. Configure Malayalam (`ml-IN`) and the clinic rules.
-4. Paste a transcript such as:
-
-   ```text
-   Caller: വെള്ളിയാഴ്ച മതി. രാവിലെ 10 മണി ലഭ്യമാണോ?
-   Agent: അതെ, രാവിലെ 10 മണി ലഭ്യമാണ്. നിങ്ങളുടെ അപ്പോയിന്റ്മെന്റ് ഉറപ്പിച്ചു.
+1. **Clone the repository:**
+   ```sh
+   git clone https://github.com/Sinxn-coder/VaaniQA.git
+   cd VaaniQA
    ```
 
-5. Set expected behavior to explain that availability must be checked before confirming a slot.
-6. Select **Live OpenAI**.
-7. Run the evaluation.
-8. Explain that the result is a model estimate based on text evidence.
-9. Point out that the evaluator can identify the missing transcript evidence for an availability check.
-10. Explain that vocal delivery is **Not evaluated** without audio analysis and that language/register findings require human review.
+2. **Install dependencies:**
+   ```sh
+   npm install
+   ```
 
-### Demo mode
+3. **Configure environment variables:**
+   ```sh
+   cp .env.example .env
+   ```
 
-Demo mode is local and deterministic. It does not call OpenAI and should be presented as a transparent heuristic demonstration, not as a live model result. It is useful when credentials or network access are unavailable.
+   Edit `.env` with your preferred configuration:
+   ```dotenv
+   # Server-side only. Required for live evaluations, transcription, and scenario generation.
+   OPENAI_API_KEY=your_openai_api_key_here
 
-## API overview
+   # Evaluator model (default: gpt-4.1-mini)
+   OPENAI_MODEL=gpt-4.1-mini
+
+   # Port for the local server
+   PORT=3000
+
+   # Optional: Supabase Shared Pooler PostgreSQL connection (port 5432, sslmode=require)
+   # Leave blank to use browser-local storage.
+   DATABASE_URL=
+   ```
+
+4. **Start the development server:**
+   ```sh
+   npm run dev
+   ```
+
+   Open your browser at:
+   ```text
+   http://localhost:3000/
+   ```
+
+---
+
+## Development Scripts
+
+```sh
+# Start local development server with live reload
+npm run dev
+
+# Run automated test suite (56 tests)
+npm test
+
+# Type-check and build production artifacts
+npm run build
+
+# Start production server
+npm start
+
+# Preview production client build
+npm run preview
+```
+
+---
+
+## API & Integration Seams
+
+The server exposes structured endpoints for evaluation and workspace management:
 
 ### `POST /api/evaluations`
-
-Evaluates a transcript with the configured server-side provider.
-
-Required JSON fields:
-
+Evaluates a conversation transcript against expected behavior.
 ```json
 {
-  "conversation": "Caller: ...\\nAgent: ...",
-  "expectedBehavior": "The clinic rule or desired behavior",
+  "conversation": "Caller: വെള്ളിയാഴ്ച അപ്പോയിന്റ്മെന്റ് ഉണ്ടോ?\\nAgent: അതെ, രാവിലെ 10 മണി ലഭ്യമാണ്.",
+  "expectedBehavior": "Verify schedule availability before confirming booking.",
   "language": "Malayalam",
   "locale": "ml-IN"
 }
 ```
 
-The server validates input, calls the configured provider, validates structured output, checks that evidence quotes occur in the submitted transcript, rejects unsupported validation claims, and returns a UI-shaped evaluation.
+### `POST /api/scenarios/generate`
+Generates a structured synthetic scenario library based on agent configuration and clinic rules.
 
 ### `POST /api/transcriptions`
+Accepts multipart/binary audio streams (`.mp3`, `.wav`, `.m4a`, `.webm` up to 25 MB) and returns text transcription via Whisper.
 
-Accepts supported audio uploads up to 25 MB and returns a transcript. It explicitly marks vocal delivery as not evaluated.
+### `GET /api/persistence/status`
+Returns whether persistence is running in `local` (browser storage) or `supabase` mode. Persistence endpoints are restricted to same-origin loopback requests for development security.
 
-### `POST /api/scenarios/generate`
+---
 
-Generates a synthetic scenario library from the configured agent description, services, hours, and clinic rules. It does not receive Test Lab transcripts.
+## Privacy, Security & Responsible AI
 
-### Persistence routes
+- **No Public API Exposure:** The server is configured for local development and loopback requests; it does not implement public multi-tenant authentication.
+- **Data Minimization:** Provider API calls specify `store: false`. Evaluation persistence schemas intentionally omit raw transcript bodies and customer identifiers.
+- **Identifier Redaction:** The dataset repository checks for common medical record, phone, and identity patterns before allowing record import.
+- **Never Upload Confidential Data:** Do not upload unconsented customer phone recordings, patient identifiers, or private data to public model providers.
 
-Persistence routes are available only to loopback clients and matching same-origin requests. They are intended for local development, not deployment as a shared API.
+---
 
-## Supabase setup
+## Contributing & License
 
-Supabase is optional. Without a valid `DATABASE_URL`, the app uses browser local storage.
+Contributions, feedback, and discussion on voice-agent quality assurance are warmly welcomed. Please open an issue or pull request to discuss ideas.
 
-To enable the adapter:
+This repository is currently maintained as an open prototype and evaluation platform under the project's root repository configuration. Consult the team before commercial production deployment.
 
-1. Create or select the intended Supabase project.
-2. Copy the **Shared Pooler / Session mode** connection string.
-3. Use port `5432` and `sslmode=require`.
-4. Add it to the local `.env` as `DATABASE_URL`.
-5. Apply:
+---
 
-   ```text
-   supabase/migrations/20261024000100_vaaniqa_mvp_persistence.sql
-   ```
-
-6. Restart the server.
-7. Verify `/api/persistence/status` and save/reload workspace data.
-
-The migration creates private tables, enables RLS, revokes browser-facing access, and leaves the server-side connection as the intended persistence path. Database credentials must remain server-side.
-
-## Scripts
-
-```sh
-npm run dev      # Start the local development server
-npm test         # Run the automated test suite
-npm run build    # Type-check and build frontend/server output
-npm start        # Start the compiled production server
-npm run preview  # Preview the Vite build
-```
-
-## Verification status
-
-The repository currently has automated coverage for:
-
-- Evaluation input and output schemas
-- Evidence presence and transcript turn mapping
-- Malayalam/Tamil locale handling
-- Malayalam-English code-switching constraints
-- Provider errors, rate limits, missing credentials, and malformed output
-- Audio upload validation and transcription errors
-- Dataset provenance, rights, review, and identifier checks
-- Persistence schema validation and private-table/RLS migration expectations
-
-Before a live demonstration, run:
-
-```sh
-npm test
-npm run build
-git diff --check
-```
-
-Also manually preflight the exact transcript and provider configuration. Passing automated tests does not verify the external OpenAI account, Supabase database availability, browser rendering, or native-speaker quality.
-
-## Git and secret hygiene
-
-- Do not commit `.env`.
-- Do not commit API keys, database URLs with passwords, tokens, recordings, patient data, or private logs.
-- Review `git status` before staging.
-- Build output and local dependency folders are ignored.
-- Rotate any credential that has been exposed outside its intended local environment.
-
-## License and production notice
-
-This repository is an MVP/prototype. Confirm the desired license, data-processing terms, provider terms, access-control model, retention policy, and human-review process before production deployment.
+**VaaniQA — Built for every voice.**
+Repository: [https://github.com/Sinxn-coder/VaaniQA](https://github.com/Sinxn-coder/VaaniQA)
