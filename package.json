@@ -1,0 +1,33 @@
+{
+  "name": "vaaniqa",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx server/index.ts",
+    "test": "tsx --test server/evaluation.test.ts server/scenarios.test.ts server/transcription.test.ts server/persistence.test.ts src/evaluation/audioUpload.test.ts src/evaluation/context.test.ts src/scenarios/repository.test.ts src/dataset/repository.test.ts",
+    "build": "tsc -b && vite build && tsc -p tsconfig.server.json",
+    "start": "node dist-server/index.js",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "openai": "^5.12.2",
+    "pg": "^8.23.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^22.15.30",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "tsx": "^4.20.5",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.5"
+  }
+}
